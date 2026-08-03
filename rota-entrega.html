@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manifesto de Rota — Gerador de Link</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt: #1B1F2A;
+    --asphalt-2: #262C3B;
+    --paper: #F3EFE4;
+    --paper-line: #DCD5C2;
+    --safety: #FFC93C;
+    --muted: #8A93A6;
+    --ink: #232323;
+    --ok: #3DDC97;
+    --danger: #E8604C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--asphalt);
+    background-image:
+      repeating-linear-gradient(180deg, transparent 0 38px, rgba(255,255,255,0.035) 38px 40px);
+    color: var(--paper);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding: 28px 16px 60px;
+  }
+  .app{ width:100%; max-width: 480px; }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing: 0.12em;
+    color: var(--safety);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:8px;height:8px;border-radius:50%;
+    background:var(--safety);
+    box-shadow:0 0 0 3px rgba(255,201,60,0.18);
+  }
+  h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size: 30px;
+    line-height:1.05;
+    letter-spacing: 0.01em;
+    margin: 0 0 6px;
+    text-transform: uppercase;
+  }
+  .sub{
+    color: var(--muted);
+    font-size: 14px;
+    line-height:1.5;
+    margin-bottom: 24px;
+  }
+
+  .manifest{
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 22px 18px 18px;
+    position: relative;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  }
+  .manifest::before{
+    content:"";
+    position:absolute; top:-1px; left:0; right:0; height:6px;
+    background: repeating-linear-gradient(90deg, var(--asphalt) 0 10px, transparent 10px 20px);
+    opacity:0.5;
+    border-radius: 10px 10px 0 0;
+  }
+  .manifest-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom: 1px dashed var(--paper-line);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .manifest-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform:uppercase;
+    letter-spacing: 0.1em;
+    color: #6b6455;
+  }
+  .stop-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #6b6455;
+  }
+
+  textarea{
+    width:100%;
+    min-height: 190px;
+    resize: vertical;
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    background:#fff;
+    color: var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    padding: 12px 14px;
+    outline:none;
+  }
+  textarea:focus{ border-color: var(--asphalt); }
+  textarea::placeholder{ color:#a8a196; }
+
+  .helper-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top: 8px;
+  }
+  .limit-note{
+    font-size:11.5px;
+    color:#9a927f;
+    line-height:1.4;
+  }
+
+  .generate-btn{
+    width:100%;
+    margin-top: 16px;
+    border:none;
+    background: var(--safety);
+    color: var(--asphalt);
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 15px;
+    border-radius: 8px;
+    cursor:pointer;
+    transition: transform .1s ease, background .15s;
+  }
+  .generate-btn:hover{ background:#ffd35c; }
+  .generate-btn:active{ transform: scale(0.98); }
+
+  .error{
+    color: var(--danger);
+    font-size: 12.5px;
+    margin-top: 10px;
+    display:none;
+  }
+  .error.show{ display:block; }
+
+  /* Result */
+  .result{
+    margin-top: 22px;
+    display:none;
+  }
+  .result.show{ display:block; }
+  .result-summary{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color: var(--ok);
+    margin-bottom: 14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .result-summary::before{
+    content:"✓";
+    width:16px;height:16px;
+    border-radius:50%;
+    background: var(--ok);
+    color: var(--asphalt);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px;
+  }
+
+  .leg{
+    background: var(--asphalt-2);
+    border: 1px solid #363d4f;
+    border-radius: 8px;
+    padding: 14px 14px 12px;
+    margin-bottom: 12px;
+  }
+  .leg-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom: 8px;
+  }
+  .leg-title{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: 14px;
+    text-transform:uppercase;
+    color: var(--safety);
+    letter-spacing:0.02em;
+  }
+  .leg-range{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: #8a93a6;
+  }
+  .link-box{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: #c9cede;
+    word-break: break-all;
+    line-height:1.5;
+    margin-bottom: 10px;
+  }
+  .leg-actions{
+    display:flex;
+    gap:8px;
+  }
+  .action-btn{
+    flex:1;
+    text-align:center;
+    text-decoration:none;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 12.5px;
+    padding: 10px;
+    border-radius: 6px;
+    cursor:pointer;
+    border: 1.5px solid transparent;
+    transition: opacity .15s;
+  }
+  .action-btn:active{ opacity:0.85; }
+  .btn-copy{
+    background: transparent;
+    border-color: var(--paper);
+    color: var(--paper);
+  }
+  .btn-whats{
+    background: #25D366;
+    color: #0b3d24;
+  }
+
+  .toast{
+    position:fixed;
+    bottom: 24px;
+    left:50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--paper);
+    color: var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight:600;
+    padding: 12px 18px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity .2s, transform .2s;
+    z-index: 10;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  .foot{
+    text-align:center;
+    color:#565e70;
+    font-size:11.5px;
+    margin-top: 26px;
+    line-height:1.6;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+
+  /* Overlays (identificação + apoio) */
+  .support-overlay{
+    position:fixed;
+    inset:0;
+    background: rgba(11,13,18,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .support-overlay.show{ display:flex; }
+  .support-card{
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 12px;
+    max-width: 380px;
+    width:100%;
+    padding: 24px 22px 20px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    position:relative;
+  }
+  .support-card::before{
+    content:"";
+    position:absolute; top:-1px; left:0; right:0; height:6px;
+    background: repeating-linear-gradient(90deg, var(--asphalt) 0 10px, transparent 10px 20px);
+    opacity:0.5;
+    border-radius: 12px 12px 0 0;
+  }
+  .support-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform:uppercase;
+    color: #6b6455;
+    margin-bottom: 8px;
+  }
+  .support-title{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size: 21px;
+    text-transform:uppercase;
+    line-height:1.15;
+    margin: 0 0 10px;
+  }
+  .support-body{
+    font-size: 13.5px;
+    line-height:1.55;
+    color:#4a4536;
+    margin-bottom: 16px;
+  }
+  .pix-box{
+    background:#fff;
+    border: 1px dashed var(--paper-line);
+    border-radius: 7px;
+    padding: 12px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .pix-key{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+    word-break: break-all;
+  }
+  .pix-copy{
+    flex-shrink:0;
+    border:none;
+    background: var(--asphalt);
+    color: var(--safety);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 12px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    cursor:pointer;
+  }
+  .support-actions{
+    display:flex;
+    gap: 10px;
+  }
+  .support-actions button{
+    flex:1;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 13.5px;
+    padding: 12px;
+    border-radius: 7px;
+    cursor:pointer;
+    border: none;
+  }
+  .support-dismiss{
+    background: transparent;
+    color: #8a8371;
+    border: 1.5px solid var(--paper-line) !important;
+  }
+  .support-donated{
+    background: var(--ok);
+    color: #0b3d24;
+  }
+  .id-input{
+    width:100%;
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    background:#fff;
+    color: var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    padding: 11px 12px;
+    outline:none;
+    margin-bottom: 10px;
+  }
+  .id-input:focus{ border-color: var(--asphalt); }
+  .id-error{
+    color: var(--danger);
+    font-size: 12px;
+    margin-bottom: 10px;
+    display:none;
+  }
+  .id-error.show{ display:block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="eyebrow">Rota • grátis • sem cadastro</div>
+  <h1>Manifesto de Rota</h1>
+  <div class="sub">Cole um endereço por linha, na ordem das entregas. Como o Google Maps só aceita 10 paradas por link, a ferramenta divide sua lista em trechos encadeados — o fim de um trecho é o começo do próximo.</div>
+
+  <div class="manifest">
+    <div class="manifest-head">
+      <div class="manifest-title">Lista de entregas</div>
+      <div class="stop-count" id="stopCount">0 endereços</div>
+    </div>
+
+    <textarea id="addressInput" placeholder="Ponto de partida
+Rua A, 123
+Rua B, 456
+Rua C, 789
+..."></textarea>
+
+    <div class="helper-row">
+      <div class="limit-note">1 endereço por linha. Sem limite de quantidade — 50, 80, o que precisar.</div>
+    </div>
+
+    <div class="error" id="errorMsg">Cole pelo menos 2 endereços para gerar a rota.</div>
+
+    <button class="generate-btn" id="generateBtn" type="button">Gerar links da rota</button>
+
+    <div class="result" id="result">
+      <div class="result-summary" id="resultSummary"></div>
+      <div id="legsContainer"></div>
+    </div>
+  </div>
+
+  <div class="foot">Cada trecho abre direto no Google Maps, na ordem que você colou.<br>Seus dados de identificação ficam salvos só para contar acessos — não usamos isso pra mais nada.</div>
+</div>
+
+<div class="toast" id="toast">Link copiado!</div>
+
+<!-- Identificação (login simples por nome + celular) -->
+<div class="support-overlay" id="idOverlay">
+  <div class="support-card">
+    <div class="support-eyebrow">Antes de começar</div>
+    <div class="support-title">Como podemos te chamar?</div>
+    <div class="support-body">Isso serve só pra lembrar seus acessos em qualquer aparelho. Sem senha, sem SMS de confirmação.</div>
+    <input class="id-input" type="text" id="idName" placeholder="Seu nome" autocomplete="name">
+    <input class="id-input" type="tel" id="idPhone" placeholder="Seu celular (com DDD)" autocomplete="tel">
+    <div class="id-error" id="idError">Preencha nome e celular pra continuar.</div>
+    <button class="support-donated" id="idSubmitBtn" type="button" style="width:100%;">Continuar</button>
+  </div>
+</div>
+
+<!-- Pop-up de apoio (3º acesso e depois a cada 30) -->
+<div class="support-overlay" id="supportOverlay">
+  <div class="support-card">
+    <div class="support-eyebrow">Uma pausa rápida</div>
+    <div class="support-title">Essa ferramenta te ajudou?</div>
+    <div class="support-body">Ela é gratuita e continua sendo. Mas se ela facilitou sua rota hoje, um Pix de R$ 1 ajuda a manter ela no ar — sem compromisso nenhum.</div>
+    <div class="pix-box">
+      <div class="pix-key" id="pixKey">03601872340</div>
+      <button class="pix-copy" id="pixCopyBtn" type="button">Copiar chave</button>
+    </div>
+    <div class="support-actions">
+      <button class="support-dismiss" id="supportDismissBtn" type="button">Agora não</button>
+      <button class="support-donated" id="supportDonatedBtn" type="button">Já mandei o Pix 🙌</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ======= COLE AQUI A CONFIGURAÇÃO DO SEU PROJETO FIREBASE =======
+  const firebaseConfig = {
+    apiKey: "AIzaSyBdJQKZrJ9-KVro_U_vkT_Y8E1GXSlQYpI",
+    authDomain: "rota-curta.firebaseapp.com",
+    projectId: "rota-curta",
+    storageBucket: "rota-curta.firebasestorage.app",
+    messagingSenderId: "882706403766",
+    appId: "1:882706403766:web:9a2c81c2e7df5ca2b13117"
+  };
+  // ==================================================================
+
+  let db = null;
+  try{
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+  }catch(e){
+    console.error('Firebase não configurado ainda:', e);
+  }
+
+  // ---- Ferramenta de rota (igual antes) ----
+  const addressInput = document.getElementById('addressInput');
+  const stopCount = document.getElementById('stopCount');
+  const generateBtn = document.getElementById('generateBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  const result = document.getElementById('result');
+  const resultSummary = document.getElementById('resultSummary');
+  const legsContainer = document.getElementById('legsContainer');
+  const toast = document.getElementById('toast');
+
+  const MAX_PER_LEG = 10;
+
+  function getAddresses(){
+    return addressInput.value.split('\n').map(a => a.trim()).filter(Boolean);
+  }
+
+  function updateCount(){
+    const n = getAddresses().length;
+    stopCount.textContent = `${n} endereço${n !== 1 ? 's' : ''}`;
+    result.classList.remove('show');
+    errorMsg.classList.remove('show');
+  }
+
+  addressInput.addEventListener('input', updateCount);
+  updateCount();
+
+  function buildLegs(addresses){
+    const legs = [];
+    let i = 0;
+    while (i < addresses.length - 1){
+      const end = Math.min(i + (MAX_PER_LEG - 1), addresses.length - 1);
+      legs.push(addresses.slice(i, end + 1));
+      i = end;
+    }
+    return legs;
+  }
+
+  function buildMapsUrl(stops){
+    const origin = encodeURIComponent(stops[0]);
+    const destination = encodeURIComponent(stops[stops.length - 1]);
+    const middle = stops.slice(1, -1).map(a => encodeURIComponent(a));
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+    if (middle.length){
+      url += `&waypoints=${middle.join('|')}`;
+    }
+    return url;
+  }
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  async function copyText(text){
+    try{
+      await navigator.clipboard.writeText(text);
+    }catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToast('Link copiado!');
+  }
+
+  generateBtn.addEventListener('click', () => {
+    const addresses = getAddresses();
+    if (addresses.length < 2){
+      errorMsg.classList.add('show');
+      result.classList.remove('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    const legs = buildLegs(addresses);
+    resultSummary.textContent = `${addresses.length} paradas — ${legs.length} trecho${legs.length !== 1 ? 's' : ''} gerado${legs.length !== 1 ? 's' : ''}`;
+
+    legsContainer.innerHTML = '';
+    legs.forEach((stops, idx) => {
+      const url = buildMapsUrl(stops);
+      const legDiv = document.createElement('div');
+      legDiv.className = 'leg';
+      legDiv.innerHTML = `
+        <div class="leg-head">
+          <div class="leg-title">Trecho ${idx + 1} de ${legs.length}</div>
+          <div class="leg-range">${stops.length} paradas</div>
+        </div>
+        <div class="link-box">${url}</div>
+        <div class="leg-actions">
+          <button class="action-btn btn-copy" type="button">Copiar link</button>
+          <a class="action-btn btn-whats" href="https://wa.me/?text=${encodeURIComponent('Rota — trecho ' + (idx+1) + ' de ' + legs.length + ':\n' + url)}" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+        </div>
+      `;
+      legDiv.querySelector('.btn-copy').addEventListener('click', () => copyText(url));
+      legsContainer.appendChild(legDiv);
+    });
+
+    result.classList.add('show');
+  });
+
+  // ---- Pop-up de apoio ----
+  const supportOverlay = document.getElementById('supportOverlay');
+  const pixKeyEl = document.getElementById('pixKey');
+  const pixCopyBtn = document.getElementById('pixCopyBtn');
+  const supportDismissBtn = document.getElementById('supportDismissBtn');
+  const supportDonatedBtn = document.getElementById('supportDonatedBtn');
+
+  function shouldShowSupportPopup(n){
+    if (n === 3) return true;
+    if (n > 3 && (n - 3) % 30 === 0) return true;
+    return false;
+  }
+
+  supportDismissBtn.addEventListener('click', () => supportOverlay.classList.remove('show'));
+  supportDonatedBtn.addEventListener('click', () => {
+    showToast('Muito obrigada! 💛');
+    supportOverlay.classList.remove('show');
+  });
+  pixCopyBtn.addEventListener('click', () => copyText(pixKeyEl.textContent.trim()));
+
+  // ---- Identificação (nome + celular) e contagem via Firestore ----
+  const idOverlay = document.getElementById('idOverlay');
+  const idName = document.getElementById('idName');
+  const idPhone = document.getElementById('idPhone');
+  const idError = document.getElementById('idError');
+  const idSubmitBtn = document.getElementById('idSubmitBtn');
+
+  function sanitizePhone(v){
+    return v.replace(/\D/g, '');
+  }
+
+  async function trackAndMaybeShowSupport(phone, name){
+    if (!db) return; // Firebase ainda não configurado
+    try{
+      const ref = doc(db, 'acessos', phone);
+      const snap = await getDoc(ref);
+      let count;
+      if (snap.exists()){
+        count = (snap.data().count || 0) + 1;
+        await updateDoc(ref, {
+          count: increment(1),
+          lastAccess: new Date().toISOString(),
+          nome: name || snap.data().nome || ''
+        });
+      } else {
+        count = 1;
+        await setDoc(ref, { nome: name || '', telefone: phone, count: 1, lastAccess: new Date().toISOString() });
+      }
+      if (shouldShowSupportPopup(count)){
+        supportOverlay.classList.add('show');
+      }
+    }catch(e){
+      console.error('Erro ao registrar acesso:', e);
+    }
+  }
+
+  idSubmitBtn.addEventListener('click', async () => {
+    const name = idName.value.trim();
+    const phone = sanitizePhone(idPhone.value);
+    if (!name || phone.length < 8){
+      idError.classList.add('show');
+      return;
+    }
+    idError.classList.remove('show');
+    localStorage.setItem('courier_name', name);
+    localStorage.setItem('courier_phone', phone);
+    idOverlay.classList.remove('show');
+    await trackAndMaybeShowSupport(phone, name);
+  });
+
+  async function initTracking(){
+    const savedPhone = localStorage.getItem('courier_phone');
+    const savedName = localStorage.getItem('courier_name');
+    if (savedPhone){
+      await trackAndMaybeShowSupport(savedPhone, savedName);
+    } else {
+      idOverlay.classList.add('show');
+    }
+  }
+
+  initTracking();
+</script>
+</body>
+</html>
