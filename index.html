@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0E0E10">
+<title>Encurte Sua Rota — Otimização no Google Maps</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --asphalt: #0E0E10;
+    --asphalt-2: #1C1C1F;
+    --paper: #FFF8E7;
+    --paper-line: #E8DCC0;
+    --safety: #FFCC00;
+    --orange: #FF6A00;
+    --muted: #9C9C9C;
+    --ink: #171412;
+    --ok: #2ECC71;
+    --danger: #E63946;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--asphalt);
+    background-image:
+      repeating-linear-gradient(180deg, transparent 0 34px, rgba(255,204,0,0.06) 34px 38px);
+    color: var(--paper);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding: 28px 16px 60px;
+  }
+  .app{ width:100%; max-width: 480px; }
+
+  .hazard-strip{
+    height: 10px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    background: repeating-linear-gradient(135deg, var(--asphalt) 0 10px, var(--safety) 10px 20px);
+  }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing: 0.12em;
+    color: var(--orange);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:8px;height:8px;border-radius:50%;
+    background:var(--orange);
+    box-shadow:0 0 0 3px rgba(255,106,0,0.2);
+  }
+  h1{
+    font-family:'Bebas Neue', 'Oswald', sans-serif;
+    font-weight:400;
+    font-size: 46px;
+    line-height:0.95;
+    letter-spacing: 0.02em;
+    margin: 0 0 4px;
+    text-transform: uppercase;
+    color: var(--safety);
+    text-shadow: 2px 2px 0 rgba(255,106,0,0.35);
+  }
+  h1 .tagline{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.14em;
+    color: var(--orange);
+    -webkit-text-fill-color: var(--orange);
+    text-shadow:none;
+    margin-top: 6px;
+  }
+  .sub{
+    color: var(--muted);
+    font-size: 14px;
+    line-height:1.5;
+    margin: 12px 0 24px;
+  }
+
+  .manifest{
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 22px 18px 18px;
+    position: relative;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  }
+  .manifest::before{
+    content:"";
+    position:absolute; top:-1px; left:0; right:0; height:7px;
+    background: repeating-linear-gradient(135deg, var(--asphalt) 0 10px, var(--safety) 10px 20px);
+    border-radius: 10px 10px 0 0;
+  }
+  .manifest-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom: 1px dashed var(--paper-line);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .manifest-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform:uppercase;
+    letter-spacing: 0.1em;
+    color: #6b6455;
+  }
+  .stop-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #6b6455;
+  }
+
+  textarea{
+    width:100%;
+    min-height: 150px;
+    resize: vertical;
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    background:#fff;
+    color: var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    padding: 12px 14px;
+    outline:none;
+  }
+  textarea:focus{ border-color: var(--asphalt); }
+  textarea::placeholder{ color:#a8a196; }
+
+  .btn-row{
+    display:flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .btn-row .mic-btn, .btn-row .import-btn{ margin-top:0; flex:1; }
+
+  .import-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 8px;
+    border: 1.5px solid var(--asphalt);
+    background: transparent;
+    color: var(--asphalt);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 8px;
+    cursor:pointer;
+  }
+  .import-btn:hover{ background: rgba(27,31,42,0.06); }
+
+  .helper-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top: 10px;
+    gap: 10px;
+  }
+  .limit-note{
+    font-size:11.5px;
+    color:#9a927f;
+    line-height:1.4;
+  }
+
+  .mic-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 8px;
+    width:100%;
+    border: 1.5px solid var(--asphalt);
+    background: transparent;
+    color: var(--asphalt);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 8px;
+    cursor:pointer;
+    transition: background .15s, color .15s;
+  }
+  .mic-btn:hover{ background: rgba(27,31,42,0.06); }
+  .mic-btn.listening{
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #fff;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .mic-dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    background: currentColor;
+  }
+  .mic-btn.listening .mic-dot{
+    animation: blink 1s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow: 0 0 0 0 rgba(232,96,76,0.35); }
+    50%{ box-shadow: 0 0 0 8px rgba(232,96,76,0); }
+  }
+  @keyframes blink{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.3; }
+  }
+  .mic-hint{
+    font-size: 11.5px;
+    color:#9a927f;
+    text-align:center;
+    margin-top: 6px;
+    line-height:1.4;
+  }
+
+  /* Lista editável de endereços */
+  .addr-list{
+    margin-top: 12px;
+    display:flex;
+    flex-direction:column;
+    gap: 6px;
+  }
+  .addr-row{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    padding: 8px 8px 8px 12px;
+  }
+  .addr-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #a8a196;
+    width: 18px;
+    flex-shrink:0;
+  }
+  .addr-text{
+    flex:1;
+    font-size: 13px;
+    color: var(--ink);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    cursor:text;
+  }
+  .addr-edit-input{
+    flex:1;
+    border:none;
+    outline:none;
+    font-size:13px;
+    font-family:'IBM Plex Sans', sans-serif;
+    color: var(--ink);
+  }
+  .addr-row button{
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    font-size: 15px;
+    color: #a8a196;
+    padding: 2px 4px;
+    flex-shrink:0;
+  }
+  .addr-row button:hover{ color: var(--danger); }
+
+  .generate-btn{
+    width:100%;
+    margin-top: 16px;
+    border:none;
+    background: var(--safety);
+    color: var(--asphalt);
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 15px;
+    border-radius: 8px;
+    cursor:pointer;
+    transition: transform .1s ease, background .15s;
+  }
+  .generate-btn:hover{ background: var(--orange); color: #fff; }
+  .generate-btn:active{ transform: scale(0.98); }
+  .generate-btn:disabled{ opacity:0.7; }
+
+  .error{
+    color: var(--danger);
+    font-size: 12.5px;
+    margin-top: 10px;
+    display:none;
+  }
+  .error.show{ display:block; }
+
+  /* Result */
+  .result{
+    margin-top: 22px;
+    display:none;
+  }
+  .result.show{ display:block; }
+  .result-summary{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color: var(--ok);
+    margin-bottom: 14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .result-summary::before{
+    content:"✓";
+    width:16px;height:16px;
+    border-radius:50%;
+    background: var(--ok);
+    color: var(--asphalt);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px;
+  }
+
+  #mapPreview{
+    height: 220px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    display:none;
+    border: 1px solid rgba(255,106,0,0.3);
+  }
+  .map-note{
+    font-size: 10.5px;
+    color:#8a93a6;
+    margin: -10px 0 14px;
+    display:none;
+  }
+
+  /* Checklist de entrega */
+  .delivery-box{
+    background: var(--asphalt-2);
+    border: 1px solid rgba(255,106,0,0.3);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .delivery-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color: var(--safety);
+    margin-bottom: 8px;
+  }
+  .delivery-item{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12.5px;
+    color: #c9cede;
+    border-bottom: 1px solid #333a4a;
+  }
+  .delivery-item:last-child{ border-bottom:none; }
+  .delivery-item input{ width:16px; height:16px; flex-shrink:0; }
+  .delivery-item.done .delivery-item-text{
+    text-decoration: line-through;
+    color: #6b7386;
+  }
+
+  .leg{
+    background: var(--asphalt-2);
+    border: 1px solid rgba(255,106,0,0.3);
+    border-radius: 8px;
+    padding: 14px 14px 12px;
+    margin-bottom: 12px;
+  }
+  .leg-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom: 8px;
+  }
+  .leg-title{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: 14px;
+    text-transform:uppercase;
+    color: var(--safety);
+    letter-spacing:0.02em;
+  }
+  .leg-range{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: #8a93a6;
+  }
+  .link-box{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: #c9cede;
+    word-break: break-all;
+    line-height:1.5;
+    margin-bottom: 10px;
+  }
+  .leg-actions{
+    display:flex;
+    gap:8px;
+  }
+  .action-btn{
+    flex:1;
+    text-align:center;
+    text-decoration:none;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 12.5px;
+    padding: 10px;
+    border-radius: 6px;
+    cursor:pointer;
+    border: 1.5px solid transparent;
+    transition: opacity .15s;
+  }
+  .action-btn:active{ opacity:0.85; }
+  .btn-copy{
+    background: transparent;
+    border-color: var(--paper);
+    color: var(--paper);
+  }
+  .btn-whats{
+    background: #25D366;
+    color: #0b3d24;
+  }
+
+  .copy-all-btn{
+    width:100%;
+    margin-top: 4px;
+    border: 1.5px solid var(--asphalt);
+    background: transparent;
+    color: var(--asphalt);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 14px;
+    padding: 12px;
+    border-radius: 8px;
+    cursor:pointer;
+  }
+
+  .toast{
+    position:fixed;
+    bottom: 24px;
+    left:50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--paper);
+    color: var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight:600;
+    padding: 12px 18px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity .2s, transform .2s;
+    z-index: 10;
+    max-width: 90vw;
+    text-align:center;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  details.history{
+    margin-top: 20px;
+    background: var(--asphalt-2);
+    border: 1px solid rgba(255,106,0,0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  details.history summary{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color: var(--safety);
+    cursor:pointer;
+  }
+  .history-item{
+    font-size: 12px;
+    color: #c9cede;
+    padding: 6px 0;
+    border-bottom: 1px solid #333a4a;
+  }
+  .history-item:last-child{ border-bottom:none; }
+  .history-empty{
+    font-size: 12px;
+    color:#8a93a6;
+    padding: 8px 0 2px;
+  }
+
+  .foot{
+    text-align:center;
+    color:#565e70;
+    font-size:11.5px;
+    margin-top: 26px;
+    line-height:1.6;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+
+  /* Overlays (identificação + apoio) */
+  .support-overlay{
+    position:fixed;
+    inset:0;
+    background: rgba(11,13,18,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .support-overlay.show{ display:flex; }
+  .support-card{
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 12px;
+    max-width: 380px;
+    width:100%;
+    padding: 24px 22px 20px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    position:relative;
+  }
+  .support-card::before{
+    content:"";
+    position:absolute; top:-1px; left:0; right:0; height:6px;
+    background: repeating-linear-gradient(90deg, var(--asphalt) 0 10px, transparent 10px 20px);
+    opacity:0.5;
+    border-radius: 12px 12px 0 0;
+  }
+  .support-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform:uppercase;
+    color: #6b6455;
+    margin-bottom: 8px;
+  }
+  .support-title{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size: 21px;
+    text-transform:uppercase;
+    line-height:1.15;
+    margin: 0 0 10px;
+  }
+  .support-body{
+    font-size: 13.5px;
+    line-height:1.55;
+    color:#4a4536;
+    margin-bottom: 16px;
+  }
+  .pix-box{
+    background:#fff;
+    border: 1px dashed var(--paper-line);
+    border-radius: 7px;
+    padding: 12px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .pix-key{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+    word-break: break-all;
+  }
+  .pix-copy{
+    flex-shrink:0;
+    border:none;
+    background: var(--asphalt);
+    color: var(--safety);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 12px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    cursor:pointer;
+  }
+  .support-actions{
+    display:flex;
+    gap: 10px;
+  }
+  .support-actions button{
+    flex:1;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size: 13.5px;
+    padding: 12px;
+    border-radius: 7px;
+    cursor:pointer;
+    border: none;
+  }
+  .support-dismiss{
+    background: transparent;
+    color: #8a8371;
+    border: 1.5px solid var(--paper-line) !important;
+  }
+  .support-donated{
+    background: var(--ok);
+    color: #0b3d24;
+  }
+  .id-input{
+    width:100%;
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    background:#fff;
+    color: var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    padding: 11px 12px;
+    outline:none;
+    margin-bottom: 10px;
+  }
+  .id-input:focus{ border-color: var(--asphalt); }
+  .id-error{
+    color: var(--danger);
+    font-size: 12px;
+    margin-bottom: 10px;
+    display:none;
+  }
+  .id-error.show{ display:block; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hazard-strip"></div>
+  <div class="eyebrow">Rota • grátis • sem cadastro</div>
+  <h1>Encurte Sua Rota<span class="tagline">Otimização no Google Maps</span></h1>
+  <div class="sub">Cole, fale ou importe os endereços — não precisa estar em ordem, a ferramenta reorganiza a rota sozinha a partir do seu ponto de partida.</div>
+
+  <div class="manifest">
+    <div class="manifest-head">
+      <div class="manifest-title">Lista de entregas</div>
+      <div class="stop-count" id="stopCount">0 endereços</div>
+    </div>
+
+    <textarea id="addressInput" placeholder="Ponto de partida
+Rua A, 123
+Rua B, 456
+Rua C, 789
+..."></textarea>
+
+    <div class="btn-row">
+      <button class="mic-btn" id="micBtn" type="button">
+        <span class="mic-dot"></span>
+        <span id="micBtnText">Falar endereço</span>
+      </button>
+      <button class="import-btn" id="importBtn" type="button">📄 Importar CSV/TXT</button>
+      <input type="file" id="csvInput" accept=".csv,.txt" style="display:none;">
+    </div>
+    <div class="mic-hint" id="micHint">Toque, fale um endereço, e ele entra numa linha nova sozinho. Toque de novo pra parar.</div>
+
+    <div id="addrList" class="addr-list"></div>
+
+    <div class="helper-row">
+      <div class="limit-note">1 endereço por linha. Sem limite de quantidade. Não precisa estar em ordem.</div>
+    </div>
+
+    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:#6b6455; margin-top:10px;">
+      <input type="checkbox" id="optimizeToggle" checked style="width:16px;height:16px;">
+      Otimizar ordem das paradas automaticamente
+    </label>
+
+    <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:#6b6455; margin-top:8px;">
+      <input type="checkbox" id="useLocationToggle" checked style="width:16px;height:16px;">
+      Inserir meu local como partida inicial da rota
+    </label>
+
+    <div class="error" id="errorMsg">Cole pelo menos 2 endereços para gerar a rota.</div>
+
+    <button class="generate-btn" id="generateBtn" type="button">Gerar links da rota</button>
+
+    <div class="result" id="result">
+      <div class="result-summary" id="resultSummary"></div>
+      <div id="mapPreview"></div>
+      <div class="map-note" id="mapNote">Mapa aproximado — linha reta entre pontos, não é a rua real.</div>
+      <div class="delivery-box" id="deliveryBox" style="display:none;">
+        <div class="delivery-title" id="deliveryTitle">Checklist de entrega</div>
+        <div id="deliveryList"></div>
+      </div>
+      <div id="legsContainer"></div>
+    </div>
+  </div>
+
+  <details class="history">
+    <summary>Histórico de rotas</summary>
+    <div id="historyList"></div>
+  </details>
+
+  <div class="foot">Cada trecho abre direto no Google Maps, na ordem otimizada.<br>Localização por OpenStreetMap. Seus dados de identificação ficam salvos só para contar acessos — não usamos isso pra mais nada.</div>
+
+  <div class="hazard-strip" style="margin-top:24px;"></div>
+  <div style="text-align:center; padding: 4px 12px 0;">
+    <div style="font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase; color: var(--orange); margin-bottom:14px;">
+      Feito por uma entregadora, para todos os entregadores 🛵
+    </div>
+    <div style="font-family:'IBM Plex Sans', sans-serif; font-size:13px; font-style:italic; line-height:1.6; color: var(--paper); opacity:0.85; max-width:340px; margin:0 auto;">
+      "Reconhece-o em todos os teus caminhos, e ele endireitará as tuas veredas."
+      <div style="font-style:normal; font-size:11px; letter-spacing:0.06em; color: var(--safety); margin-top:6px; text-transform:uppercase;">Provérbios 3:6</div>
+    </div>
+    <div style="font-size:18px; margin-top:12px;">🙏 🛣️ 💛</div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Link copiado!</div>
+
+<!-- Identificação (login simples por nome + celular) -->
+<div class="support-overlay" id="idOverlay">
+  <div class="support-card">
+    <div class="support-eyebrow">Antes de começar</div>
+    <div class="support-title">Como podemos te chamar?</div>
+    <div class="support-body">Isso serve só pra lembrar seus acessos em qualquer aparelho. Sem senha, sem SMS de confirmação.</div>
+    <input class="id-input" type="text" id="idName" placeholder="Seu nome" autocomplete="name">
+    <input class="id-input" type="tel" id="idPhone" placeholder="Seu celular (com DDD)" autocomplete="tel">
+    <div class="id-error" id="idError">Preencha nome e celular pra continuar.</div>
+    <button class="support-donated" id="idSubmitBtn" type="button" style="width:100%;">Continuar</button>
+  </div>
+</div>
+
+<!-- Pop-up de apoio (3º acesso e depois a cada 30) -->
+<div class="support-overlay" id="supportOverlay">
+  <div class="support-card">
+    <div class="support-eyebrow">Uma pausa rápida</div>
+    <div class="support-title">Essa ferramenta te ajudou?</div>
+    <div class="support-body">Ela é gratuita e continua sendo. Mas se ela facilitou sua rota hoje, um Pix de R$ 1 ajuda a manter ela no ar — sem compromisso nenhum.</div>
+    <div class="pix-box">
+      <div class="pix-key" id="pixKey">maesonhadorabrasil@gmail.com</div>
+      <button class="pix-copy" id="pixCopyBtn" type="button">Copiar chave</button>
+    </div>
+    <div class="support-actions">
+      <button class="support-dismiss" id="supportDismissBtn" type="button">Agora não</button>
+      <button class="support-donated" id="supportDonatedBtn" type="button">Já mandei o Pix 🙌</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBdJQKZrJ9-KVro_U_vkT_Y8E1GXSlQYpI",
+    authDomain: "rota-curta.firebaseapp.com",
+    projectId: "rota-curta",
+    storageBucket: "rota-curta.firebasestorage.app",
+    messagingSenderId: "882706403766",
+    appId: "1:882706403766:web:9a2c81c2e7df5ca2b13117"
+  };
+
+  let db = null;
+  try{
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+  }catch(e){
+    console.error('Firebase não configurado ainda:', e);
+  }
+
+  // ---- Elementos ----
+  const addressInput = document.getElementById('addressInput');
+  const stopCount = document.getElementById('stopCount');
+  const generateBtn = document.getElementById('generateBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  const result = document.getElementById('result');
+  const resultSummary = document.getElementById('resultSummary');
+  const legsContainer = document.getElementById('legsContainer');
+  const toast = document.getElementById('toast');
+  const addrListEl = document.getElementById('addrList');
+  const mapPreviewEl = document.getElementById('mapPreview');
+  const mapNoteEl = document.getElementById('mapNote');
+  const deliveryBox = document.getElementById('deliveryBox');
+  const deliveryTitle = document.getElementById('deliveryTitle');
+  const deliveryList = document.getElementById('deliveryList');
+  const historyList = document.getElementById('historyList');
+
+  const MAX_PER_LEG = 9;
+  const DRAFT_KEY = 'route_draft_v1';
+
+  function getAddresses(){
+    return addressInput.value.split('\n').map(a => a.trim()).filter(Boolean);
+  }
+
+  // ---- Autosave do rascunho ----
+  function saveDraft(){
+    try{ localStorage.setItem(DRAFT_KEY, addressInput.value); }catch(e){}
+  }
+  function restoreDraft(){
+    try{
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) addressInput.value = saved;
+    }catch(e){}
+  }
+
+  // ---- Lista editável de endereços ----
+  function renderAddressList(){
+    const addresses = getAddresses();
+    addrListEl.innerHTML = '';
+    addresses.forEach((addr, idx) => {
+      const row = document.createElement('div');
+      row.className = 'addr-row';
+      row.innerHTML = `
+        <span class="addr-num">${idx + 1}</span>
+        <span class="addr-text" title="Toque para editar">${addr}</span>
+        <button type="button" class="addr-remove" aria-label="Remover">×</button>
+      `;
+      row.querySelector('.addr-text').addEventListener('click', () => {
+        const span = row.querySelector('.addr-text');
+        const input = document.createElement('input');
+        input.className = 'addr-edit-input';
+        input.value = addr;
+        row.replaceChild(input, span);
+        input.focus();
+        input.select();
+        function commit(){
+          const newVal = input.value.trim();
+          const list = getAddresses();
+          if (newVal) list[idx] = newVal; else list.splice(idx, 1);
+          addressInput.value = list.join('\n') + (list.length ? '\n' : '');
+          updateCount();
+        }
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter'){ e.preventDefault(); input.blur(); }
+        });
+      });
+      row.querySelector('.addr-remove').addEventListener('click', () => {
+        const list = getAddresses();
+        list.splice(idx, 1);
+        addressInput.value = list.join('\n') + (list.length ? '\n' : '');
+        updateCount();
+      });
+      addrListEl.appendChild(row);
+    });
+  }
+
+  function updateCount(){
+    const n = getAddresses().length;
+    stopCount.textContent = `${n} endereço${n !== 1 ? 's' : ''}`;
+    result.classList.remove('show');
+    errorMsg.classList.remove('show');
+    renderAddressList();
+    saveDraft();
+  }
+
+  addressInput.addEventListener('input', updateCount);
+  restoreDraft();
+  updateCount();
+
+  // ---- Importar CSV/TXT ----
+  const importBtn = document.getElementById('importBtn');
+  const csvInput = document.getElementById('csvInput');
+  importBtn.addEventListener('click', () => csvInput.click());
+  csvInput.addEventListener('change', () => {
+    const file = csvInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const lines = String(reader.result)
+        .split(/\r?\n/)
+        .map(l => l.split(',')[0].replace(/^"|"$/g, '').trim())
+        .filter(Boolean);
+      const current = addressInput.value.trim();
+      addressInput.value = (current ? current + '\n' : '') + lines.join('\n') + '\n';
+      updateCount();
+      showToast(`${lines.length} endereços importados!`);
+    };
+    reader.readAsText(file, 'UTF-8');
+    csvInput.value = '';
+  });
+
+  // ---- Entrada por voz ----
+  const micBtn = document.getElementById('micBtn');
+  const micBtnText = document.getElementById('micBtnText');
+  const micHint = document.getElementById('micHint');
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let listening = false;
+
+  function appendAddressLine(text){
+    const clean = text.trim();
+    if (!clean) return;
+    const current = addressInput.value;
+    if (!current || current.endsWith('\n')){
+      addressInput.value = current + clean;
+    } else {
+      addressInput.value = current + '\n' + clean;
+    }
+    addressInput.value += '\n';
+    addressInput.scrollTop = addressInput.scrollHeight;
+    updateCount();
+  }
+
+  function setListeningUI(on){
+    listening = on;
+    micBtn.classList.toggle('listening', on);
+    micBtnText.textContent = on ? 'Ouvindo...' : 'Falar endereço';
+  }
+
+  if (!SpeechRecognitionCtor){
+    micHint.textContent = 'Entrada por voz não disponível neste navegador — funciona melhor no Chrome.';
+    micBtn.disabled = true;
+    micBtn.style.opacity = '0.5';
+  } else {
+    micBtn.addEventListener('click', () => {
+      if (listening){
+        listening = false;
+        recognition && recognition.stop();
+        setListeningUI(false);
+        return;
+      }
+      recognition = new SpeechRecognitionCtor();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (e) => {
+        const text = e.results[0][0].transcript;
+        appendAddressLine(text);
+      };
+      recognition.onerror = () => setListeningUI(false);
+      recognition.onend = () => {
+        if (listening){
+          try{ recognition.start(); }catch(e){ setListeningUI(false); }
+        }
+      };
+
+      setListeningUI(true);
+      try{ recognition.start(); }catch(e){ setListeningUI(false); }
+    });
+  }
+
+  // ---- Otimização automática (geocodifica e reordena por proximidade) ----
+  const optimizeToggle = document.getElementById('optimizeToggle');
+
+  async function geocodeAddress(address){
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(address)}`;
+    try{
+      const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+      const data = await res.json();
+      if (data && data[0]){
+        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+      }
+    }catch(e){ /* endereço não localizado */ }
+    return null;
+  }
+
+  function haversine(a, b){
+    const R = 6371;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLon = toRad(b.lon - a.lon);
+    const h = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function nearestNeighborOrder(points){
+    const visited = new Array(points.length).fill(false);
+    const order = [0];
+    visited[0] = true;
+    let current = 0;
+    for (let step = 1; step < points.length; step++){
+      let best = -1, bestDist = Infinity;
+      for (let j = 0; j < points.length; j++){
+        if (visited[j]) continue;
+        const d = haversine(points[current].pos, points[j].pos);
+        if (d < bestDist){ bestDist = d; best = j; }
+      }
+      order.push(best);
+      visited[best] = true;
+      current = best;
+    }
+    return order.map(i => points[i]);
+  }
+
+  async function optimizeAddresses(addresses, onProgress){
+    const points = [];
+    const failed = [];
+    for (let i = 0; i < addresses.length; i++){
+      onProgress(i + 1, addresses.length);
+      const pos = await geocodeAddress(addresses[i]);
+      if (pos){
+        points.push({ address: addresses[i], pos });
+      } else {
+        failed.push(addresses[i]);
+      }
+      if (i < addresses.length - 1){
+        await new Promise(r => setTimeout(r, 1100));
+      }
+    }
+    if (points.length < 2){
+      return { ordered: addresses, failedCount: 0, orderedPoints: [] };
+    }
+    const orderedPoints = nearestNeighborOrder(points);
+    const ordered = orderedPoints.map(p => p.address).concat(failed);
+    return { ordered, failedCount: failed.length, orderedPoints };
+  }
+
+  function totalKm(orderedPoints){
+    if (!orderedPoints || orderedPoints.length < 2) return null;
+    let total = 0;
+    for (let i = 0; i < orderedPoints.length - 1; i++){
+      total += haversine(orderedPoints[i].pos, orderedPoints[i+1].pos);
+    }
+    return total;
+  }
+
+  // ---- Mapa de prévia (Leaflet) ----
+  let mapInstance = null;
+  function renderMapPreview(orderedPoints){
+    if (!orderedPoints || orderedPoints.length < 2 || typeof L === 'undefined'){
+      mapPreviewEl.style.display = 'none';
+      mapNoteEl.style.display = 'none';
+      return;
+    }
+    mapPreviewEl.style.display = 'block';
+    mapNoteEl.style.display = 'block';
+    if (!mapInstance){
+      mapInstance = L.map(mapPreviewEl);
+    } else {
+      mapInstance.eachLayer(l => mapInstance.removeLayer(l));
+    }
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(mapInstance);
+    const latlngs = orderedPoints.map(p => [p.pos.lat, p.pos.lon]);
+    orderedPoints.forEach((p, i) => {
+      L.marker([p.pos.lat, p.pos.lon], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="background:#FFC93C;color:#1B1F2A;font-weight:700;font-family:sans-serif;font-size:11px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #1B1F2A;">${i+1}</div>`
+        })
+      }).addTo(mapInstance);
+    });
+    L.polyline(latlngs, { color: '#FFC93C', weight: 3, dashArray: '6,6' }).addTo(mapInstance);
+    mapInstance.fitBounds(latlngs, { padding: [24, 24] });
+    setTimeout(() => mapInstance.invalidateSize(), 100);
+  }
+
+  // ---- Checklist de entrega (persistido por dia) ----
+  function todayKey(){
+    const d = new Date();
+    return `delivered_${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  }
+  function getDeliveredSet(){
+    try{
+      const raw = localStorage.getItem(todayKey());
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    }catch(e){ return new Set(); }
+  }
+  function saveDeliveredSet(set){
+    try{ localStorage.setItem(todayKey(), JSON.stringify([...set])); }catch(e){}
+  }
+  function renderDeliveryChecklist(addresses){
+    if (!addresses.length){ deliveryBox.style.display = 'none'; return; }
+    deliveryBox.style.display = 'block';
+    const delivered = getDeliveredSet();
+    deliveryList.innerHTML = '';
+    addresses.forEach((addr, idx) => {
+      const item = document.createElement('label');
+      item.className = 'delivery-item' + (delivered.has(addr) ? ' done' : '');
+      item.innerHTML = `
+        <input type="checkbox" ${delivered.has(addr) ? 'checked' : ''}>
+        <span class="delivery-item-text">${idx+1}. ${addr}</span>
+      `;
+      item.querySelector('input').addEventListener('change', (e) => {
+        const set = getDeliveredSet();
+        if (e.target.checked) set.add(addr); else set.delete(addr);
+        saveDeliveredSet(set);
+        item.classList.toggle('done', e.target.checked);
+        updateDeliveryTitle(addresses);
+      });
+      deliveryList.appendChild(item);
+    });
+    updateDeliveryTitle(addresses);
+  }
+  function updateDeliveryTitle(addresses){
+    const delivered = getDeliveredSet();
+    const done = addresses.filter(a => delivered.has(a)).length;
+    deliveryTitle.textContent = `Checklist de entrega — ${done} de ${addresses.length} entregues`;
+  }
+
+  // ---- Histórico de rotas ----
+  const HISTORY_KEY = 'route_history_v1';
+  function loadHistory(){
+    try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }catch(e){ return []; }
+  }
+  function saveHistoryEntry(entry){
+    const list = loadHistory();
+    list.unshift(entry);
+    while (list.length > 15) list.pop();
+    try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }catch(e){}
+    renderHistory();
+  }
+  function renderHistory(){
+    const list = loadHistory();
+    if (!list.length){
+      historyList.innerHTML = '<div class="history-empty">Nenhuma rota gerada ainda.</div>';
+      return;
+    }
+    historyList.innerHTML = list.map(h =>
+      `<div class="history-item">${h.date} — ${h.stops} paradas${h.km ? ' — ~' + h.km + ' km' : ''}</div>`
+    ).join('');
+  }
+  renderHistory();
+
+  function buildLegs(addresses, firstChunkSize){
+    const legs = [];
+    let i = 0;
+    if (firstChunkSize && firstChunkSize < MAX_PER_LEG && firstChunkSize < addresses.length){
+      legs.push(addresses.slice(0, firstChunkSize));
+      i = firstChunkSize;
+    }
+    for (; i < addresses.length; i += MAX_PER_LEG){
+      legs.push(addresses.slice(i, i + MAX_PER_LEG));
+    }
+    return legs;
+  }
+
+  function buildMapsUrl(stops, gpsOrigin){
+    if (!gpsOrigin && stops.length === 1){
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stops[0])}`;
+    }
+    let origin, destination, middle;
+    if (gpsOrigin){
+      origin = `${gpsOrigin.lat},${gpsOrigin.lon}`;
+      destination = encodeURIComponent(stops[stops.length - 1]);
+      middle = stops.slice(0, -1).map(a => encodeURIComponent(a));
+    } else {
+      origin = encodeURIComponent(stops[0]);
+      destination = encodeURIComponent(stops[stops.length - 1]);
+      middle = stops.slice(1, -1).map(a => encodeURIComponent(a));
+    }
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving&dir_action=navigate`;
+    if (middle.length){
+      url += `&waypoints=${middle.join('|')}`;
+    }
+    return url;
+  }
+
+  function getCurrentPositionPromise(timeoutMs){
+    return new Promise((resolve) => {
+      if (!navigator.geolocation){ resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: timeoutMs || 8000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  function showToast(msg, duration){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), duration || 1800);
+  }
+
+  async function copyText(text){
+    try{
+      await navigator.clipboard.writeText(text);
+    }catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToast('Copiado!');
+  }
+
+  const useLocationToggle = document.getElementById('useLocationToggle');
+
+  // Pede a localização assim que a página abre, automaticamente (igual ao microfone) —
+  // assim, quando o usuário gerar a rota, ela já está pronta na hora.
+  let prefetchedGps = null;
+  function prefetchLocation(){
+    getCurrentPositionPromise(8000).then((pos) => { prefetchedGps = pos; });
+  }
+  if (useLocationToggle.checked) prefetchLocation();
+  useLocationToggle.addEventListener('change', () => {
+    if (useLocationToggle.checked && !prefetchedGps) prefetchLocation();
+  });
+
+  generateBtn.addEventListener('click', async () => {
+    const addresses = getAddresses();
+    if (addresses.length < 2){
+      errorMsg.classList.add('show');
+      result.classList.remove('show');
+      return;
+    }
+    errorMsg.classList.remove('show');
+
+    let finalAddresses = addresses;
+    let failedCount = 0;
+    let orderedPoints = [];
+
+    if (optimizeToggle.checked){
+      generateBtn.disabled = true;
+      const originalText = generateBtn.textContent;
+      const res = await optimizeAddresses(addresses, (i, total) => {
+        generateBtn.textContent = `Otimizando rota... ${i}/${total}`;
+      });
+      finalAddresses = res.ordered;
+      failedCount = res.failedCount;
+      orderedPoints = res.orderedPoints;
+      generateBtn.disabled = false;
+      generateBtn.textContent = originalText;
+    }
+
+    let gpsOrigin = null;
+    if (useLocationToggle.checked){
+      gpsOrigin = prefetchedGps;
+      if (!gpsOrigin){
+        generateBtn.disabled = true;
+        const originalText = generateBtn.textContent;
+        generateBtn.textContent = 'Localizando você...';
+        gpsOrigin = await getCurrentPositionPromise();
+        generateBtn.disabled = false;
+        generateBtn.textContent = originalText;
+      }
+      if (!gpsOrigin){
+        showToast('Não consegui acessar sua localização — usando o 1º endereço digitado.', 3000);
+      }
+    }
+
+    const legs = buildLegs(finalAddresses, gpsOrigin ? MAX_PER_LEG - 1 : null);
+    let summaryText = `${finalAddresses.length} paradas — ${legs.length} trecho${legs.length !== 1 ? 's' : ''} gerado${legs.length !== 1 ? 's' : ''}`;
+    if (optimizeToggle.checked) summaryText += ' · ordem otimizada';
+    resultSummary.textContent = summaryText;
+
+    if (failedCount > 0){
+      errorMsg.textContent = `${failedCount} endereço${failedCount !== 1 ? 's' : ''} não ${failedCount !== 1 ? 'foram localizados' : 'foi localizado'} e ${failedCount !== 1 ? 'ficaram' : 'ficou'} no fim da lista.`;
+      errorMsg.classList.add('show');
+    }
+
+    renderMapPreview(orderedPoints);
+    renderDeliveryChecklist(finalAddresses);
+
+    const km = totalKm(orderedPoints);
+    saveHistoryEntry({
+      date: new Date().toLocaleDateString('pt-BR'),
+      stops: finalAddresses.length,
+      km: km ? km.toFixed(1) : null
+    });
+
+    legsContainer.innerHTML = '';
+    const allLinksText = [];
+    legs.forEach((stops, idx) => {
+      const url = buildMapsUrl(stops, idx === 0 ? gpsOrigin : null);
+      allLinksText.push(`Trecho ${idx + 1} de ${legs.length}:\n${url}`);
+      const legDiv = document.createElement('div');
+      legDiv.className = 'leg';
+      legDiv.innerHTML = `
+        <div class="leg-head">
+          <div class="leg-title">Trecho ${idx + 1} de ${legs.length}${idx === 0 && gpsOrigin ? ' 📍' : ''}</div>
+          <div class="leg-range">${stops.length}${idx === 0 && gpsOrigin ? '+1 (sua localização)' : ''} paradas</div>
+        </div>
+        <div class="link-box">${url}</div>
+        <div class="leg-actions">
+          <a class="action-btn btn-whats" href="https://wa.me/?text=${encodeURIComponent('Rota — trecho ' + (idx+1) + ' de ' + legs.length + ':\n' + url)}" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+          <a class="action-btn btn-copy" href="${url}" target="_blank" rel="noopener">Abrir no Maps</a>
+        </div>
+      `;
+      legsContainer.appendChild(legDiv);
+    });
+
+    const copyAllBtn = document.createElement('button');
+    copyAllBtn.type = 'button';
+    copyAllBtn.className = 'copy-all-btn';
+    copyAllBtn.textContent = 'Copiar todos os links da rota';
+    copyAllBtn.addEventListener('click', () => copyText(allLinksText.join('\n\n')));
+    legsContainer.appendChild(copyAllBtn);
+
+    result.classList.add('show');
+  });
+
+  // ---- Pop-up de apoio ----
+  const supportOverlay = document.getElementById('supportOverlay');
+  const pixKeyEl = document.getElementById('pixKey');
+  const pixCopyBtn = document.getElementById('pixCopyBtn');
+  const supportDismissBtn = document.getElementById('supportDismissBtn');
+  const supportDonatedBtn = document.getElementById('supportDonatedBtn');
+
+  function shouldShowSupportPopup(n){
+    if (n === 3) return true;
+    if (n > 3 && (n - 3) % 30 === 0) return true;
+    return false;
+  }
+
+  supportDismissBtn.addEventListener('click', () => supportOverlay.classList.remove('show'));
+  supportDonatedBtn.addEventListener('click', () => {
+    showToast('Muito obrigada! 💛');
+    supportOverlay.classList.remove('show');
+  });
+  pixCopyBtn.addEventListener('click', () => copyText(pixKeyEl.textContent.trim()));
+
+  // ---- Identificação (nome + celular) e contagem via Firestore ----
+  const idOverlay = document.getElementById('idOverlay');
+  const idName = document.getElementById('idName');
+  const idPhone = document.getElementById('idPhone');
+  const idError = document.getElementById('idError');
+  const idSubmitBtn = document.getElementById('idSubmitBtn');
+
+  function sanitizePhone(v){
+    return v.replace(/\D/g, '');
+  }
+
+  const WEEKDAYS_PT = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+
+  function quandoFoi(lastAccessISO){
+    if (!lastAccessISO) return 'da última vez';
+    const last = new Date(lastAccessISO);
+    if (isNaN(last)) return 'da última vez';
+    const now = new Date();
+    const diffDays = Math.floor((now - last) / 86400000);
+    if (diffDays <= 0) return 'mais cedo hoje';
+    if (diffDays === 1) return 'ontem';
+    if (diffDays < 7) return `${WEEKDAYS_PT[last.getDay()]}`;
+    const weeks = Math.floor(diffDays / 7);
+    if (weeks === 1) return 'semana passada';
+    if (weeks < 5) return `${weeks} semanas atrás`;
+    return 'faz um tempinho';
+  }
+
+  const WELCOME_TEMPLATES = [
+    'Boas-vindas, {nome}! Senti saudades desde {quando}, quando rodamos juntos. 💪🏻🤝',
+    'E aí, {nome}! De volta à estrada — nosso último rolê foi {quando}. 🛵💨',
+    '{nome}, que bom te ver de novo! Faz tempo desde {quando}... bora fechar essa rota! 🔥',
+    'Opa, {nome}! Tava com saudade desde {quando}. Vamos nessa entrega! 🚀',
+    'Bem-vindo(a) de volta, {nome}! {quando} a gente tava nessa junto — hoje de novo! 🤝',
+    'Fala, {nome}! Passou um tempinho desde {quando}, mas a parceria continua. 💛',
+    '{nome} na área de novo! Desde {quando} sentindo sua falta por aqui. 🙌🏻',
+    'Chegou o reforço! {nome}, {quando} foi nosso último trecho juntos — bora! 🛣️',
+    'Salve, {nome}! {quando} rodamos juntos, hoje é dia de mais entregas. 💪',
+    'De volta com tudo, {nome}! Desde {quando} guardando essa rota pra você. 🗺️',
+    '{nome}, bem-vindo(a) de volta ao time! {quando} foi nosso último match. 🤝',
+    'Opa, começou o dia com você, {nome}! {quando} foi nossa última parceria. 🚴',
+    'Bora, {nome}! {quando} a gente entregava junto — hoje o combo continua. 📦',
+    'E lá vamos nós de novo, {nome}! Desde {quando} sem essa dupla em ação. 🔥',
+    '{nome} voltou! {quando} foi a última vez, e a saudade era real. 💛',
+    'Firme e forte, {nome}! {quando} rodamos, hoje seguimos o plano. 🛵',
+    'Contando com você, {nome}! Desde {quando} esperando essa reta de novo. 🤝',
+    'Aí sim, {nome}! {quando} foi nosso último trecho — bora fazer história hoje. 🚀',
+    'Que saudade, {nome}! {quando} entregamos juntos, hoje repetimos a dose. 💪🏻',
+    '{nome}, a dupla tá de volta! {quando} foi nossa última rota juntos. 🤝',
+    'Voltou o parceiro de rota! {nome}, desde {quando} sem você por aqui. 🛣️',
+    'Fala, campeão(ã) {nome}! {quando} rodamos — hoje é dia de mais uma. 🏆',
+    'Presente, {nome}! {quando} foi nosso último encontro nessa correria. 📍',
+    '{nome} de volta ao jogo! Desde {quando} contando os dias pra essa rota. 🎯',
+    'Bem-vindo(a) de novo, {nome}! {quando} juntos na estrada, hoje seguimos. 🛵💛',
+    'Aí, {nome}! {quando} rodamos essa parceria — hora de continuar. 🤝',
+    'Voltou o time, {nome}! {quando} foi nosso último trecho — bora com tudo. 🔥',
+    '{nome}, saudade real desde {quando}! Hoje a rota é nossa de novo. 💪',
+    'Chegou quem faltava, {nome}! {quando} juntos, hoje repetimos. 🚀',
+    'Firme na parceria, {nome}! {quando} foi nossa última entrega juntos. 🤝💛'
+  ];
+
+  function pickWelcomeMessage(nome, lastAccessISO){
+    const quando = quandoFoi(lastAccessISO);
+    const template = WELCOME_TEMPLATES[Math.floor(Math.random() * WELCOME_TEMPLATES.length)];
+    return template.replace('{nome}', nome || 'parceiro(a)').replace('{quando}', quando);
+  }
+
+  async function trackAndMaybeShowSupport(phone, name){
+    if (!db) return;
+    try{
+      const ref = doc(db, 'acessos', phone);
+      const snap = await getDoc(ref);
+      let count;
+      if (snap.exists()){
+        const previous = snap.data();
+        count = (previous.count || 0) + 1;
+        const nomeFinal = name || previous.nome || '';
+        await updateDoc(ref, {
+          count: increment(1),
+          lastAccess: new Date().toISOString(),
+          nome: nomeFinal
+        });
+        showToast(pickWelcomeMessage(nomeFinal, previous.lastAccess), 4500);
+      } else {
+        count = 1;
+        await setDoc(ref, { nome: name || '', telefone: phone, count: 1, lastAccess: new Date().toISOString() });
+      }
+      if (shouldShowSupportPopup(count)){
+        setTimeout(() => supportOverlay.classList.add('show'), snap.exists() ? 4700 : 300);
+      }
+    }catch(e){
+      console.error('Erro ao registrar acesso:', e);
+    }
+  }
+
+  idSubmitBtn.addEventListener('click', async () => {
+    const name = idName.value.trim();
+    const phone = sanitizePhone(idPhone.value);
+    if (!name || phone.length < 8){
+      idError.classList.add('show');
+      return;
+    }
+    idError.classList.remove('show');
+    localStorage.setItem('courier_name', name);
+    localStorage.setItem('courier_phone', phone);
+    idOverlay.classList.remove('show');
+    await trackAndMaybeShowSupport(phone, name);
+  });
+
+  async function initTracking(){
+    const savedPhone = localStorage.getItem('courier_phone');
+    const savedName = localStorage.getItem('courier_name');
+    if (savedPhone){
+      await trackAndMaybeShowSupport(savedPhone, savedName);
+    } else {
+      idOverlay.classList.add('show');
+    }
+  }
+
+  initTracking();
+
+  // ---- PWA: registrar service worker (funciona offline após 1ª visita) ----
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
