@@ -732,10 +732,11 @@ Rua C, 789
     return url;
   }
 
-  function showToast(msg){
+  function showToast(msg, duration){
     toast.textContent = msg;
     toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 1800);
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), duration || 1800);
   }
 
   async function copyText(text){
@@ -789,8 +790,10 @@ Rua C, 789
     }
 
     legsContainer.innerHTML = '';
+    const allLinksText = [];
     legs.forEach((stops, idx) => {
       const url = buildMapsUrl(stops);
+      allLinksText.push(`Trecho ${idx + 1} de ${legs.length}:\n${url}`);
       const legDiv = document.createElement('div');
       legDiv.className = 'leg';
       legDiv.innerHTML = `
@@ -800,13 +803,20 @@ Rua C, 789
         </div>
         <div class="link-box">${url}</div>
         <div class="leg-actions">
-          <button class="action-btn btn-copy" type="button">Copiar link</button>
           <a class="action-btn btn-whats" href="https://wa.me/?text=${encodeURIComponent('Rota — trecho ' + (idx+1) + ' de ' + legs.length + ':\n' + url)}" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+          <a class="action-btn btn-copy" href="${url}" target="_blank" rel="noopener">Abrir no Maps</a>
         </div>
       `;
-      legDiv.querySelector('.btn-copy').addEventListener('click', () => copyText(url));
       legsContainer.appendChild(legDiv);
     });
+
+    const copyAllBtn = document.createElement('button');
+    copyAllBtn.type = 'button';
+    copyAllBtn.className = 'mic-btn';
+    copyAllBtn.style.marginTop = '4px';
+    copyAllBtn.textContent = 'Copiar todos os links da rota';
+    copyAllBtn.addEventListener('click', () => copyText(allLinksText.join('\n\n')));
+    legsContainer.appendChild(copyAllBtn);
 
     result.classList.add('show');
   });
@@ -842,6 +852,62 @@ Rua C, 789
     return v.replace(/\D/g, '');
   }
 
+  const WEEKDAYS_PT = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+
+  function quandoFoi(lastAccessISO){
+    if (!lastAccessISO) return 'da última vez';
+    const last = new Date(lastAccessISO);
+    if (isNaN(last)) return 'da última vez';
+    const now = new Date();
+    const diffDays = Math.floor((now - last) / 86400000);
+    if (diffDays <= 0) return 'mais cedo hoje';
+    if (diffDays === 1) return 'ontem';
+    if (diffDays < 7) return `${WEEKDAYS_PT[last.getDay()]}`;
+    const weeks = Math.floor(diffDays / 7);
+    if (weeks === 1) return 'semana passada';
+    if (weeks < 5) return `${weeks} semanas atrás`;
+    return 'faz um tempinho';
+  }
+
+  const WELCOME_TEMPLATES = [
+    'Boas-vindas, {nome}! Senti saudades desde {quando}, quando rodamos juntos. 💪🏻🤝',
+    'E aí, {nome}! De volta à estrada — nosso último rolê foi {quando}. 🛵💨',
+    '{nome}, que bom te ver de novo! Faz tempo desde {quando}... bora fechar essa rota! 🔥',
+    'Opa, {nome}! Tava com saudade desde {quando}. Vamos nessa entrega! 🚀',
+    'Bem-vindo(a) de volta, {nome}! {quando} a gente tava nessa junto — hoje de novo! 🤝',
+    'Fala, {nome}! Passou um tempinho desde {quando}, mas a parceria continua. 💛',
+    '{nome} na área de novo! Desde {quando} sentindo sua falta por aqui. 🙌🏻',
+    'Chegou o reforço! {nome}, {quando} foi nosso último trecho juntos — bora! 🛣️',
+    'Salve, {nome}! {quando} rodamos juntos, hoje é dia de mais entregas. 💪',
+    'De volta com tudo, {nome}! Desde {quando} guardando essa rota pra você. 🗺️',
+    '{nome}, bem-vindo(a) de volta ao time! {quando} foi nosso último match. 🤝',
+    'Opa, começou o dia com você, {nome}! {quando} foi nossa última parceria. 🚴',
+    'Bora, {nome}! {quando} a gente entregava junto — hoje o combo continua. 📦',
+    'E lá vamos nós de novo, {nome}! Desde {quando} sem essa dupla em ação. 🔥',
+    '{nome} voltou! {quando} foi a última vez, e a saudade era real. 💛',
+    'Firme e forte, {nome}! {quando} rodamos, hoje seguimos o plano. 🛵',
+    'Contando com você, {nome}! Desde {quando} esperando essa reta de novo. 🤝',
+    'Aí sim, {nome}! {quando} foi nosso último trecho — bora fazer história hoje. 🚀',
+    'Que saudade, {nome}! {quando} entregamos juntos, hoje repetimos a dose. 💪🏻',
+    '{nome}, a dupla tá de volta! {quando} foi nossa última rota juntos. 🤝',
+    'Voltou o parceiro de rota! {nome}, desde {quando} sem você por aqui. 🛣️',
+    'Fala, campeão(ã) {nome}! {quando} rodamos — hoje é dia de mais uma. 🏆',
+    'Presente, {nome}! {quando} foi nosso último encontro nessa correria. 📍',
+    '{nome} de volta ao jogo! Desde {quando} contando os dias pra essa rota. 🎯',
+    'Bem-vindo(a) de novo, {nome}! {quando} juntos na estrada, hoje seguimos. 🛵💛',
+    'Aí, {nome}! {quando} rodamos essa parceria — hora de continuar. 🤝',
+    'Voltou o time, {nome}! {quando} foi nosso último trecho — bora com tudo. 🔥',
+    '{nome}, saudade real desde {quando}! Hoje a rota é nossa de novo. 💪',
+    'Chegou quem faltava, {nome}! {quando} juntos, hoje repetimos. 🚀',
+    'Firme na parceria, {nome}! {quando} foi nossa última entrega juntos. 🤝💛'
+  ];
+
+  function pickWelcomeMessage(nome, lastAccessISO){
+    const quando = quandoFoi(lastAccessISO);
+    const template = WELCOME_TEMPLATES[Math.floor(Math.random() * WELCOME_TEMPLATES.length)];
+    return template.replace('{nome}', nome || 'parceiro(a)').replace('{quando}', quando);
+  }
+
   async function trackAndMaybeShowSupport(phone, name){
     if (!db) return; // Firebase ainda não configurado
     try{
@@ -849,18 +915,21 @@ Rua C, 789
       const snap = await getDoc(ref);
       let count;
       if (snap.exists()){
-        count = (snap.data().count || 0) + 1;
+        const previous = snap.data();
+        count = (previous.count || 0) + 1;
+        const nomeFinal = name || previous.nome || '';
         await updateDoc(ref, {
           count: increment(1),
           lastAccess: new Date().toISOString(),
-          nome: name || snap.data().nome || ''
+          nome: nomeFinal
         });
+        showToast(pickWelcomeMessage(nomeFinal, previous.lastAccess), 4500);
       } else {
         count = 1;
         await setDoc(ref, { nome: name || '', telefone: phone, count: 1, lastAccess: new Date().toISOString() });
       }
       if (shouldShowSupportPopup(count)){
-        supportOverlay.classList.add('show');
+        setTimeout(() => supportOverlay.classList.add('show'), snap.exists() ? 4700 : 300);
       }
     }catch(e){
       console.error('Erro ao registrar acesso:', e);
